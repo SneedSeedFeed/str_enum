@@ -2,23 +2,24 @@
 //! Syntax:
 //! ```
 //! str_enum::str_enum! {
+//!     #[repr(u8)]
 //!     pub enum MyEnum {
-//!         Variant0 = "Value0"("other valid forms such as", "value0", "can go in brackets"), // note these other valid forms are only used in the enum's try_from_str method and FromStr implementation.
-//!         Variant1 = "Value1"
+//!         Variant0 => "Value0"("other valid forms such as", "value0", "can go in brackets"), // note these other valid forms are only used in the enum's try_from_str method and FromStr implementation.
+//!         Variant1 = 3 => "Value1" // you can add a discriminant
 //!     }
 //! }
 //!
 //! str_enum::str_enum! {
 //!     #[derive(Clone, Copy)] // You can add derives (exceptions: de/serialize enable the `serde` feature for that, Hash which is implemented automatically to be compatible with &str since the type is Borrow<str>)
 //!     pub enum MyEnumDerives {
-//!         Variant0 = "Value0"
+//!         Variant0 => "Value0"
 //!     }
 //! }
 //!
 //! str_enum::str_enum! {
 //!     #[error_type(MyErrorType)] // Add this to opt-in to a FromStr implementation
 //!     enum MyEnumFromStr {
-//!         Foo = "Bar"
+//!         Foo => "Bar"
 //!     }
 //! }
 //!
@@ -153,13 +154,16 @@ macro_rules! str_enum_partial_ord_impl {
 
 #[macro_export]
 macro_rules! str_enum_base {
-    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $vis:vis enum $ty:ident { $($variant:ident = $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
+    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
         $(
             #[derive($($derive_trait,)*)]
         )?
+        $(
+            #[repr($repr)]
+        )?
         $vis enum $ty {
             $(
-                $variant,
+                $variant $(= $variant_repr)?,
             )*
         }
 
@@ -228,6 +232,20 @@ macro_rules! str_enum_base {
                 self.as_str().len()
             }
         }
+
+        $(
+            impl $ty {
+                fn into_repr(self) -> $repr {
+                    self as $repr
+                }
+            }
+
+            impl From<$ty> for $repr {
+                fn from(v: $ty) -> $repr {
+                    v as $repr
+                }
+            }
+        )?
 
         impl std::fmt::Display for $ty {
             fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -450,12 +468,13 @@ macro_rules! str_enum_base {
 #[cfg(not(feature = "serde"))]
 #[macro_export]
 macro_rules! str_enum {
-    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $vis:vis enum $ty:ident { $($variant:ident = $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
+    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
         $crate::str_enum_base!(
             $(#[error_type($error_ty)])?
             $(#[derive($($derive_trait,)*)])?
+            $(#[repr($repr)])?
             $vis enum $ty {
-                $($variant = $val $(($($other_valid),*))?,)*
+                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
             }
         );
     };
@@ -464,12 +483,13 @@ macro_rules! str_enum {
 #[cfg(feature = "serde")]
 #[macro_export]
 macro_rules! str_enum {
-    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $vis:vis enum $ty:ident { $($variant:ident = $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
+    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
         $crate::str_enum_base!(
             $(#[error_type($error_ty)])?
             $(#[derive($($derive_trait,)*)])?
+            $(#[repr($repr)])?
             $vis enum $ty {
-                $($variant = $val $(($($other_valid),*))?,)*
+                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
             }
         );
 

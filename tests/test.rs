@@ -5,10 +5,17 @@ use str_enum::str_enum;
 str_enum! {
     #[error_type(MyError)]
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+    #[repr(u8)]
     pub(crate) enum MyEnum {
-        Variant1 = "Variant1"("variant1"),
-        Variant2 = "Variant2",
+        Variant1 = 5 => "Variant1"("variant1"),
+        Variant2 => "Variant2",
     }
+}
+
+#[test]
+fn test_repr() {
+    assert_eq!(std::mem::size_of::<MyEnum>(), std::mem::size_of::<u8>());
+    assert_eq!(MyEnum::Variant1.into_repr(), 5);
 }
 
 #[test]

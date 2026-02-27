@@ -11,9 +11,10 @@ use str_enum::str_enum;
 str_enum! {
     #[error_type(MyError)] // optional: adds a FromStr implementation with the chosen error as the error type
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)] // optional: adds the derives you specify to the enum. just not de/serialize, enable the serde feature for that
+    #[repr(u8)] // optional: decide the repr
     pub(crate) enum MyEnum {
-        Variant1 = "Variant1"("variant1"), // can add optional valid forms of input in brackets, if you want to cover lower case 
-        Variant2 = "Variant2",
+        Variant1 = 1 => "Variant1", // can optionally decide the discriminant for the variant
+        Variant2 => "Variant2"("variant1"), // can add optional valid forms of input in brackets, if you want to cover lower case for example
     }
 }
 ```
