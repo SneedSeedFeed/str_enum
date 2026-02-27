@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 //! Macro for creating an enum where all variants have an associated constant string.
 //! Syntax:
 //! ```
