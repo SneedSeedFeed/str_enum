@@ -2,9 +2,21 @@ use std::{collections::HashMap, hash::DefaultHasher};
 
 use str_enum::str_enum;
 
+#[cfg(not(feature = "strum"))]
 str_enum! {
     #[error_type(MyError)]
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+    #[repr(u8)]
+    pub(crate) enum MyEnum {
+        Variant1 = 5 => "Variant1"("variant1"),
+        Variant2 => "Variant2",
+    }
+}
+
+#[cfg(feature = "strum")]
+str_enum! {
+    #[error_type(MyError)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
     #[repr(u8)]
     pub(crate) enum MyEnum {
         Variant1 = 5 => "Variant1"("variant1"),
@@ -47,6 +59,7 @@ fn test_debug() {
 #[test]
 fn test_clone() {
     let v1 = MyEnum::Variant1;
+    #[allow(clippy::clone_on_copy)]
     let v1_clone = v1.clone();
     assert_eq!(v1, v1_clone);
 }
@@ -149,5 +162,89 @@ mod serde {
     #[test]
     fn test_serde_expected_str() {
         assert_eq!(MyEnum::SERDE_EXPECTED_STR, "one of [Variant1,Variant2]");
+    }
+}
+
+#[cfg(feature = "strum")]
+mod strum {
+    use crate::MyEnum;
+    use str_enum::strum::{
+        EnumCount, EnumProperty, IntoEnumIterator, VariantArray, VariantIterator, VariantMetadata,
+        VariantNames,
+    };
+
+    #[test]
+    fn test_enum_count() {
+        assert_eq!(MyEnum::COUNT, 2);
+    }
+
+    #[test]
+    fn test_enum_property() {
+        assert_eq!(MyEnum::Variant1.get_str(""), Some("Variant1"));
+        assert_eq!(MyEnum::Variant2.get_str("42"), Some("Variant2"));
+        assert_eq!(MyEnum::Variant1.get_int("foo"), None);
+        assert_eq!(MyEnum::Variant1.get_bool("bar"), None);
+    }
+
+    #[test]
+    fn test_into_enum_iterator() {
+        let variants: Vec<MyEnum> = <MyEnum as strum::IntoEnumIterator>::iter().collect();
+        assert_eq!(variants, vec![MyEnum::Variant1, MyEnum::Variant2]);
+    }
+
+    #[test]
+    fn test_into_enum_iterator_double_ended() {
+        let variants: Vec<MyEnum> = <MyEnum as strum::IntoEnumIterator>::iter().rev().collect();
+        assert_eq!(variants, vec![MyEnum::Variant2, MyEnum::Variant1]);
+    }
+
+    #[test]
+    fn test_into_enum_iterator_exact_size() {
+        let iter = <MyEnum as IntoEnumIterator>::iter();
+        assert_eq!(iter.len(), 2);
+    }
+
+    #[test]
+    fn test_variant_iterator() {
+        let variants: Vec<MyEnum> = <MyEnum as VariantIterator>::iter().collect();
+        assert_eq!(variants, vec![MyEnum::Variant1, MyEnum::Variant2]);
+    }
+
+    #[test]
+    fn test_variant_array() {
+        assert_eq!(
+            <MyEnum as VariantArray>::VARIANTS,
+            &[MyEnum::Variant1, MyEnum::Variant2]
+        );
+    }
+
+    #[test]
+    fn test_variant_names() {
+        assert_eq!(
+            <MyEnum as VariantNames>::VARIANTS,
+            &["Variant1", "Variant2"]
+        );
+    }
+
+    #[test]
+    fn test_variant_metadata_count() {
+        assert_eq!(MyEnum::VARIANT_COUNT, 2);
+    }
+
+    #[test]
+    fn test_variant_metadata_names() {
+        assert_eq!(MyEnum::VARIANT_NAMES, &["Variant1", "Variant2"]);
+    }
+
+    #[test]
+    fn test_variant_metadata_variant_name() {
+        assert_eq!(MyEnum::Variant1.variant_name(), "Variant1");
+        assert_eq!(MyEnum::Variant2.variant_name(), "Variant2");
+    }
+
+    #[test]
+    fn test_into_discriminant() {
+        use str_enum::strum::IntoDiscriminant;
+        assert_eq!(MyEnum::Variant1.discriminant(), 5u8);
     }
 }

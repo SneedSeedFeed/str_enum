@@ -18,3 +18,10 @@ str_enum! {
     }
 }
 ```
+
+## Features
+
+| feature | description |
+| --- | --- |
+| serde | Enables `serde` as a dependency and implements `Serialize` and `Deserialize` for the enum, respecting alternate valid forms. |
+| strum | Enables `strum` as a dependency and implements `EnumCount`, `EnumProperty`, `IntoDiscriminant` (if you have a defined repr), `IntoEnumIterator`, `VariantArray`, `VariantIterator`, `VariantNames` and `VariantMetadata`. Note that these implementations require your enum to opt into implementing `Copy` |

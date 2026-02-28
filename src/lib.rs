@@ -3,24 +3,12 @@
 //! Syntax:
 //! ```
 //! str_enum::str_enum! {
+//!     #[error_type(MyErrorType)] // Add this to opt-in to a FromStr implementation
+//!     #[derive(Clone, Copy)] // You can add derives (exceptions: de/serialize enable the `serde` feature for that, Hash which is implemented automatically to be compatible with &str since the type is Borrow<str>)
 //!     #[repr(u8)]
 //!     pub enum MyEnum {
 //!         Variant0 => "Value0"("other valid forms such as", "value0", "can go in brackets"), // note these other valid forms are only used in the enum's try_from_str method and FromStr implementation.
 //!         Variant1 = 3 => "Value1" // you can add a discriminant
-//!     }
-//! }
-//!
-//! str_enum::str_enum! {
-//!     #[derive(Clone, Copy)] // You can add derives (exceptions: de/serialize enable the `serde` feature for that, Hash which is implemented automatically to be compatible with &str since the type is Borrow<str>)
-//!     pub enum MyEnumDerives {
-//!         Variant0 => "Value0"
-//!     }
-//! }
-//!
-//! str_enum::str_enum! {
-//!     #[error_type(MyErrorType)] // Add this to opt-in to a FromStr implementation
-//!     enum MyEnumFromStr {
-//!         Foo => "Bar"
 //!     }
 //! }
 //!
@@ -33,6 +21,9 @@
 
 #[cfg(feature = "serde")]
 pub use serde;
+
+#[cfg(feature = "strum")]
+pub use strum;
 
 #[macro_export]
 macro_rules! str_enum_base {
@@ -446,34 +437,85 @@ macro_rules! str_enum_base {
     };
 }
 
-#[cfg(not(feature = "serde"))]
+#[cfg(feature = "strum")]
 #[macro_export]
-macro_rules! str_enum {
+macro_rules! str_enum_strum {
     ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
-        $crate::str_enum_base!(
-            $(#[error_type($error_ty)])?
-            $(#[derive($($derive_trait,)*)])?
-            $(#[repr($repr)])?
-            $vis enum $ty {
-                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
+        impl $crate::strum::EnumCount for $ty {
+            const COUNT: usize = $ty::ALL_VARIANTS.len();
+        }
+
+        impl $crate::strum::EnumProperty for $ty {
+            fn get_str(&self, prop: &str) -> Option<&'static str> {
+                Some(self.as_str())
             }
-        );
+
+            fn get_int(&self, _: &str) -> Option<i64> {
+                None
+            }
+
+            fn get_bool(&self, _: &str) -> Option<bool> {
+                None
+            }
+        }
+
+        $(
+            impl $crate::strum::IntoDiscriminant for $ty {
+                type Discriminant = $repr;
+
+                fn discriminant(&self) -> Self::Discriminant {
+                    self.into_repr()
+                }
+            }
+        )?
+
+        impl $crate::strum::IntoEnumIterator for $ty {
+            type Iterator = std::iter::Copied<std::slice::Iter<'static, $ty>>;
+
+            fn iter() -> Self::Iterator {
+                Self::ALL_VARIANTS.iter().copied()
+            }
+        }
+
+        impl $crate::strum::VariantArray for $ty {
+            const VARIANTS: &'static [Self] = Self::ALL_VARIANTS;
+        }
+
+        impl $crate::strum::VariantIterator for $ty {
+            type Iterator = std::iter::Copied<std::slice::Iter<'static, $ty>>;
+
+            fn iter() -> Self::Iterator {
+                Self::ALL_VARIANTS.iter().copied()
+            }
+        }
+
+        impl $crate::strum::VariantNames for $ty {
+            const VARIANTS: &'static [&'static str] = &[$(stringify!($variant),)*];
+        }
+
+        impl $crate::strum::VariantMetadata for $ty {
+            const VARIANT_COUNT: usize = Self::ALL_VARIANTS.len();
+            const VARIANT_NAMES: &'static [&'static str] = &[$(stringify!($variant),)*];
+
+            fn variant_name(&self) -> &'static str {
+                match self {
+                    $(Self::$variant => stringify!($variant),)*
+                }
+            }
+        }
     };
 }
 
-#[cfg(feature = "serde")]
 #[macro_export]
-macro_rules! str_enum {
-    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
-        $crate::str_enum_base!(
-            $(#[error_type($error_ty)])?
-            $(#[derive($($derive_trait,)*)])?
-            $(#[repr($repr)])?
-            $vis enum $ty {
-                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
-            }
-        );
+#[cfg(not(feature = "strum"))]
+macro_rules! str_enum_strum {
+    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {};
+}
 
+#[macro_export]
+#[cfg(feature = "serde")]
+macro_rules! str_enum_serde {
+    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
         impl $ty {
             const SERDE_EXPECTED_STR_LEN: usize = "one of [".len() + "]".len() + Self::ALL_VALUES_STR_LEN;
             const SERDE_EXPECTED_STR_BYTES: [u8; Self::SERDE_EXPECTED_STR_LEN] = {
@@ -531,6 +573,45 @@ macro_rules! str_enum {
                 $ty::try_from_str(&val).ok_or_else(|| $crate::serde::de::Error::invalid_value($crate::serde::de::Unexpected::Str(&val), &$ty::SERDE_EXPECTED_STR))
             }
         }
+    };
+}
+
+#[macro_export]
+#[cfg(not(feature = "serde"))]
+macro_rules! str_enum_serde {
+    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {};
+}
+
+#[macro_export]
+macro_rules! str_enum {
+    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
+        $crate::str_enum_base!(
+            $(#[error_type($error_ty)])?
+            $(#[derive($($derive_trait,)*)])?
+            $(#[repr($repr)])?
+            $vis enum $ty {
+                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
+            }
+        );
+
+        $crate::str_enum_strum!(
+            $(#[error_type($error_ty)])?
+            $(#[derive($($derive_trait,)*)])?
+            $(#[repr($repr)])?
+            $vis enum $ty {
+                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
+            }
+        );
+
+        $crate::str_enum_serde!(
+            $(#[error_type($error_ty)])?
+            $(#[derive($($derive_trait,)*)])?
+            $(#[repr($repr)])?
+            $vis enum $ty {
+                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
+            }
+        );
+
     };
 }
 
