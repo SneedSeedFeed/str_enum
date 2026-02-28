@@ -42,6 +42,7 @@ macro_rules! str_enum_base {
 
         impl $ty {
             pub const ALL_VARIANTS: &[Self] = &[$(Self::$variant,)*];
+            pub const NUM_VARIANTS: usize = Self::ALL_VARIANTS.len();
 
             pub const fn as_str(&self) -> &'static str {
                 match self {
@@ -470,10 +471,10 @@ macro_rules! str_enum_strum {
         )?
 
         impl $crate::strum::IntoEnumIterator for $ty {
-            type Iterator = std::iter::Copied<std::slice::Iter<'static, $ty>>;
+            type Iterator = std::array::IntoIter<$ty, {$ty::NUM_VARIANTS}>;
 
             fn iter() -> Self::Iterator {
-                Self::ALL_VARIANTS.iter().copied()
+                [$(Self::$variant,)*].into_iter()
             }
         }
 
@@ -482,10 +483,10 @@ macro_rules! str_enum_strum {
         }
 
         impl $crate::strum::VariantIterator for $ty {
-            type Iterator = std::iter::Copied<std::slice::Iter<'static, $ty>>;
+            type Iterator = std::array::IntoIter<$ty, {$ty::NUM_VARIANTS}>;
 
             fn iter() -> Self::Iterator {
-                Self::ALL_VARIANTS.iter().copied()
+                [$(Self::$variant,)*].into_iter()
             }
         }
 
