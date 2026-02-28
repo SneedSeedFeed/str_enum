@@ -446,20 +446,6 @@ macro_rules! str_enum_strum {
             const COUNT: usize = $ty::ALL_VARIANTS.len();
         }
 
-        impl $crate::strum::EnumProperty for $ty {
-            fn get_str(&self, prop: &str) -> Option<&'static str> {
-                Some(self.as_str())
-            }
-
-            fn get_int(&self, _: &str) -> Option<i64> {
-                None
-            }
-
-            fn get_bool(&self, _: &str) -> Option<bool> {
-                None
-            }
-        }
-
         $(
             impl $crate::strum::IntoDiscriminant for $ty {
                 type Discriminant = $repr;

@@ -169,21 +169,12 @@ mod serde {
 mod strum {
     use crate::MyEnum;
     use str_enum::strum::{
-        EnumCount, EnumProperty, IntoEnumIterator, VariantArray, VariantIterator, VariantMetadata,
-        VariantNames,
+        EnumCount, IntoEnumIterator, VariantArray, VariantIterator, VariantMetadata, VariantNames,
     };
 
     #[test]
     fn test_enum_count() {
         assert_eq!(MyEnum::COUNT, 2);
-    }
-
-    #[test]
-    fn test_enum_property() {
-        assert_eq!(MyEnum::Variant1.get_str(""), Some("Variant1"));
-        assert_eq!(MyEnum::Variant2.get_str("42"), Some("Variant2"));
-        assert_eq!(MyEnum::Variant1.get_int("foo"), None);
-        assert_eq!(MyEnum::Variant1.get_bool("bar"), None);
     }
 
     #[test]

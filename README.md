@@ -24,4 +24,4 @@ str_enum! {
 | feature | description |
 | --- | --- |
 | serde | Enables `serde` as a dependency and implements `Serialize` and `Deserialize` for the enum, respecting alternate valid forms. |
-| strum | Enables `strum` as a dependency and implements `EnumCount`, `EnumProperty`, `IntoDiscriminant` (if you have a defined repr), `IntoEnumIterator`, `VariantArray`, `VariantIterator`, `VariantNames` and `VariantMetadata`. Note that the `IntoDiscriminant` implementation requires your enum to opt into implementing `Copy` |
+| strum | Enables `strum` as a dependency and implements `EnumCount`, `IntoDiscriminant` (if you have a defined repr), `IntoEnumIterator`, `VariantArray`, `VariantIterator`, `VariantNames` and `VariantMetadata`. Note that the `IntoDiscriminant` implementation requires your enum to opt into implementing `Copy` |
