@@ -35,125 +35,6 @@
 pub use serde;
 
 #[macro_export]
-macro_rules! str_enum_as_ref_impl {
-    ($self:ident, [$($other:ty),*]) => {
-        $(
-            impl AsRef<$other> for $self {
-                fn as_ref(&self) -> &$other {
-                    <str as AsRef<$other>>::as_ref(self.as_str())
-                }
-            }
-        )*
-    };
-}
-
-#[macro_export]
-macro_rules! str_enum_from_impl {
-    ($self:ident, [$($other:ty),*]) => {
-        $(
-            impl From<$self> for $other {
-                fn from(val: $self) -> $other {
-                    From::from(val.as_str())
-                }
-            }
-        )*
-    };
-    ('a $self:ident, [$($other:ty),*]) => {
-        $(
-            impl<'a> From<$self> for $other {
-                fn from(val: $self) -> $other {
-                    From::from(val.as_str())
-                }
-            }
-        )*
-    }
-}
-
-#[macro_export]
-macro_rules! str_enum_from_iterator_impl {
-    ($self:ident, [$($other:ty),*]) => {
-        $(
-            impl std::iter::FromIterator<$self> for $other {
-                fn from_iter<T>(iter: T) -> $other
-                where
-                    T: IntoIterator<Item = $self>
-                {
-                    <$other as std::iter::FromIterator<&'static str>>::from_iter(iter.into_iter().map(|s| s.as_str()))
-                }
-            }
-        )*
-    };
-    ('a $self:ident, [$($other:ty),*]) => {
-        $(
-            impl<'a> std::iter::FromIterator<$self> for $other {
-                fn from_iter<T>(iter: T) -> $other
-                where
-                    T: IntoIterator<Item = $self>
-                {
-                    <$other as std::iter::FromIterator<&'static str>>::from_iter(iter.into_iter().map(|s| s.as_str()))
-                }
-            }
-        )*
-    };
-}
-
-#[macro_export]
-macro_rules! str_enum_partial_eq_impl {
-    ($self:ident, [$($other:ty),*]) => {
-        $(
-            impl PartialEq<$self> for $other {
-                fn eq(&self, rhs: &$self) -> bool {
-                    self.eq(rhs.as_str())
-                }
-            }
-
-            impl PartialEq<$other> for $self {
-                fn eq(&self, rhs: &$other) -> bool {
-                    self.as_str().eq(rhs)
-                }
-            }
-        )*
-    };
-    ('a $self:ident, [$($other:ty),*]) => {
-        $(
-            impl<'a> PartialEq<$self> for $other {
-                fn eq(&self, rhs: &$self) -> bool {
-                    self.eq(rhs.as_str())
-                }
-            }
-
-            impl<'a> PartialEq<$other> for $self {
-                fn eq(&self, rhs: &$other) -> bool {
-                    self.as_str().eq(rhs)
-                }
-            }
-        )*
-    };
-}
-
-#[macro_export]
-macro_rules! str_enum_partial_ord_impl {
-    ($self:ident, [$($other:ty),*]) => {
-        $(
-            impl PartialOrd<$self> for $other {
-                fn partial_cmp(&self, rhs: &$self) -> Option<std::cmp::Ordering> {
-                    self.partial_cmp(rhs.as_str())
-                }
-            }
-        )*
-    };
-    ('a $self:ident, [$($other:ty),*]) => {
-        $(
-            impl<'a> PartialOrd<$self> for $other {
-                fn partial_cmp(&self, rhs: &$self) -> Option<std::cmp::Ordering> {
-                    self.partial_cmp(rhs.as_str())
-                }
-            }
-        )*
-    };
-}
-
-#[macro_export]
 macro_rules! str_enum_base {
     ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
         $(
@@ -294,7 +175,7 @@ macro_rules! str_enum_base {
             }
         }
 
-        $crate::str_enum_as_ref_impl!($ty, [str, std::ffi::OsStr, std::path::Path, [u8]]);
+        $crate::str_enum_base!(AsRef $ty, [str, std::ffi::OsStr, std::path::Path, [u8]]);
 
         impl Extend<$ty> for String {
             fn extend<I>(&mut self, iter: I) where I: IntoIterator<Item = $ty> {
@@ -302,10 +183,10 @@ macro_rules! str_enum_base {
             }
         }
 
-        $crate::str_enum_from_impl!($ty, [std::sync::Arc<str>, Box<str>, std::rc::Rc<str>, String, Vec<u8>]);
-        $crate::str_enum_from_impl!('a $ty, [Box<dyn std::error::Error + 'a>, Box<dyn std::error::Error + Send + Sync + 'a>, std::borrow::Cow<'a, str>]);
-        $crate::str_enum_from_iterator_impl!($ty, [Box<str>, String]);
-        $crate::str_enum_from_iterator_impl!('a $ty, [std::borrow::Cow<'a, str>]);
+        $crate::str_enum_base!(From $ty, [std::sync::Arc<str>, Box<str>, std::rc::Rc<str>, String, Vec<u8>]);
+        $crate::str_enum_base!(From 'a $ty, [Box<dyn std::error::Error + 'a>, Box<dyn std::error::Error + Send + Sync + 'a>, std::borrow::Cow<'a, str>]);
+        $crate::str_enum_base!(FromIterator $ty, [Box<str>, String]);
+        $crate::str_enum_base!(FromIterator 'a $ty, [std::borrow::Cow<'a, str>]);
 
         impl<I: std::slice::SliceIndex<str>> std::ops::Index<I> for $ty {
             type Output = <I as std::slice::SliceIndex<str>>::Output;
@@ -315,8 +196,8 @@ macro_rules! str_enum_base {
             }
         }
 
-        $crate::str_enum_partial_eq_impl!($ty, [std::ffi::OsStr, std::ffi::OsString, String, std::path::Path, std::path::PathBuf]);
-        $crate::str_enum_partial_eq_impl!('a $ty, [std::borrow::Cow<'a, str>]);
+        $crate::str_enum_base!(PartialEq $ty, [std::ffi::OsStr, std::ffi::OsString, String, std::path::Path, std::path::PathBuf]);
+        $crate::str_enum_base!(PartialEq 'a $ty, [std::borrow::Cow<'a, str>]);
 
         impl PartialEq<&str> for $ty {
             fn eq(&self, rhs: &&str) -> bool {
@@ -342,7 +223,7 @@ macro_rules! str_enum_base {
             }
         }
 
-        $crate::str_enum_partial_ord_impl!($ty, [std::ffi::OsStr, std::ffi::OsString]);
+        $crate::str_enum_base!(PartialOrd $ty, [std::ffi::OsStr, std::ffi::OsString]);
 
         impl PartialOrd<$ty> for str {
             fn partial_cmp(&self, rhs: &$ty) -> Option<std::cmp::Ordering> {
@@ -463,6 +344,105 @@ macro_rules! str_enum_base {
                 }
             }
         )?
+    };
+    (AsRef $self:ident, [$($other:ty),*]) => {
+        $(
+            impl AsRef<$other> for $self {
+                fn as_ref(&self) -> &$other {
+                    <str as AsRef<$other>>::as_ref(self.as_str())
+                }
+            }
+        )*
+    };
+    (From $self:ident, [$($other:ty),*]) => {
+        $(
+            impl From<$self> for $other {
+                fn from(val: $self) -> $other {
+                    From::from(val.as_str())
+                }
+            }
+        )*
+    };
+    (From 'a $self:ident, [$($other:ty),*]) => {
+        $(
+            impl<'a> From<$self> for $other {
+                fn from(val: $self) -> $other {
+                    From::from(val.as_str())
+                }
+            }
+        )*
+    };
+    (FromIterator $self:ident, [$($other:ty),*]) => {
+        $(
+            impl std::iter::FromIterator<$self> for $other {
+                fn from_iter<T>(iter: T) -> $other
+                where
+                    T: IntoIterator<Item = $self>
+                {
+                    <$other as std::iter::FromIterator<&'static str>>::from_iter(iter.into_iter().map(|s| s.as_str()))
+                }
+            }
+        )*
+    };
+    (FromIterator 'a $self:ident, [$($other:ty),*]) => {
+        $(
+            impl<'a> std::iter::FromIterator<$self> for $other {
+                fn from_iter<T>(iter: T) -> $other
+                where
+                    T: IntoIterator<Item = $self>
+                {
+                    <$other as std::iter::FromIterator<&'static str>>::from_iter(iter.into_iter().map(|s| s.as_str()))
+                }
+            }
+        )*
+    };
+    (PartialEq $self:ident, [$($other:ty),*]) => {
+        $(
+            impl PartialEq<$self> for $other {
+                fn eq(&self, rhs: &$self) -> bool {
+                    self.eq(rhs.as_str())
+                }
+            }
+
+            impl PartialEq<$other> for $self {
+                fn eq(&self, rhs: &$other) -> bool {
+                    self.as_str().eq(rhs)
+                }
+            }
+        )*
+    };
+    (PartialEq 'a $self:ident, [$($other:ty),*]) => {
+        $(
+            impl<'a> PartialEq<$self> for $other {
+                fn eq(&self, rhs: &$self) -> bool {
+                    self.eq(rhs.as_str())
+                }
+            }
+
+            impl<'a> PartialEq<$other> for $self {
+                fn eq(&self, rhs: &$other) -> bool {
+                    self.as_str().eq(rhs)
+                }
+            }
+        )*
+    };
+    (PartialOrd $self:ident, [$($other:ty),*]) => {
+        $(
+            impl PartialOrd<$self> for $other {
+                fn partial_cmp(&self, rhs: &$self) -> Option<std::cmp::Ordering> {
+                    self.partial_cmp(rhs.as_str())
+                }
+            }
+        )*
+    };
+    (PartialOrd 'a $self:ident, [$($other:ty),*]) => {
+        $(
+            impl<'a> PartialOrd<$self> for $other {
+                fn partial_cmp(&self, rhs: &$self) -> Option<std::cmp::Ordering> {
+                    self.partial_cmp(rhs.as_str())
+                }
+            }
+        )*
     };
 }
 
