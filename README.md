@@ -9,6 +9,7 @@ It implements basically everything `str` does, minus the derives which are opt-i
 use str_enum::str_enum;
 
 str_enum! {
+    #[phf] // optional: adds a constant PHF_MAP, which is used for try_from_str and FromStr
     #[error_type(MyError)] // optional: adds a FromStr implementation with the chosen error as the error type
     #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)] // optional: adds the derives you specify to the enum. just not de/serialize, enable the serde feature for that
     #[repr(u8)] // optional: decide the repr
@@ -23,5 +24,6 @@ str_enum! {
 
 | feature | description |
 | --- | --- |
-| serde | Enables `serde` as a dependency and implements `Serialize` and `Deserialize` for the enum, respecting alternate valid forms. |
-| strum | Enables `strum` as a dependency and implements `EnumCount`, `IntoDiscriminant` (if you have a defined repr), `IntoEnumIterator`, `VariantArray`, `VariantIterator`, `VariantNames` and `VariantMetadata`. Note that the `IntoDiscriminant` implementation requires your enum to opt into implementing `Copy` |
+| `serde` | Enables `serde` as a dependency and implements `Serialize` and `Deserialize` for the enum, respecting alternate valid forms. |
+| `strum` | Enables `strum` as a dependency and implements `EnumCount`, `IntoDiscriminant` (if you have a defined repr), `IntoEnumIterator`, `VariantArray`, `VariantIterator`, `VariantNames` and `VariantMetadata`. Note that the `IntoDiscriminant` implementation requires your enum to opt into implementing `Copy` |
+| phf | Enables `phf` as a dependency. When the `#[phf]` attribute is added to a str_enum it adds a constant `PHF_MAP` and replaces the `Self::try_from_str` and thus the `FromStr` implementation to leverage it. |

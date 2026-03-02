@@ -3,6 +3,7 @@
 //! Syntax:
 //! ```
 //! str_enum::str_enum! {
+//!     #[phf] // Adds a PHF map
 //!     #[error_type(MyErrorType)] // Add this to opt-in to a FromStr implementation
 //!     #[derive(Clone, Copy)] // You can add derives (exceptions: de/serialize enable the `serde` feature for that, Hash which is implemented automatically to be compatible with &str since the type is Borrow<str>)
 //!     #[repr(u8)]
@@ -33,10 +34,12 @@ pub use phf;
 macro_rules! str_enum_try_from_str {
     (#[phf] $(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
         impl $ty {
+            #[doc = "Compile time generated map from all valid string variants to their Variant"]
             const PHF_MAP: $crate::phf::Map<&'static str, $ty> = $crate::phf::phf_map! {
                 $($val $($(| $other_valid )*)? => $ty::$variant,)*
             };
 
+            #[doc = "Try to generate `Self` from an &str, using `Self::PHF_MAP`"]
             pub fn try_from_str(s: &str) -> Option<Self> {
                 Self::PHF_MAP.get(s).copied()
             }
@@ -44,6 +47,7 @@ macro_rules! str_enum_try_from_str {
     };
     ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
         impl $ty {
+            #[doc = "Try to generate `Self` from an &str by matching on all valid values.\nNote: If you have many variants you may want to enable the `phf` feature and add the `#[phf]` attribute."]
             pub fn try_from_str(s: &str) -> Option<Self> {
                 match s {
                     $($val $($(|$other_valid)*)? => Some(Self::$variant),)*
@@ -59,6 +63,7 @@ macro_rules! str_enum_try_from_str {
 macro_rules! str_enum_try_from_str {
     (#[phf] $(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
         impl $ty {
+            #[doc = "Try to generate `Self` from an &str by matching on all valid values.\nNote: If you have many variants you may want to enable the `phf` feature and add the `#[phf]` attribute."]
             pub fn try_from_str(s: &str) -> Option<Self> {
                 match s {
                     $($val $($(|$other_valid)*)? => Some(Self::$variant),)*
@@ -69,6 +74,7 @@ macro_rules! str_enum_try_from_str {
     };
     ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
         impl $ty {
+            #[doc = "Try to generate `Self` from an &str by matching on all valid values.\nNote: If you have many variants you may want to enable the `phf` feature and add the `#[phf]` attribute."]
             pub fn try_from_str(s: &str) -> Option<Self> {
                 match s {
                     $($val $($(|$other_valid)*)? => Some(Self::$variant),)*
@@ -95,7 +101,9 @@ macro_rules! str_enum_base {
         }
 
         impl $ty {
+            #[doc = "Collection of all variants in `Self`"]
             pub const ALL_VARIANTS: &[Self] = &[$(Self::$variant,)*];
+            #[doc = "Number of variants in `Self`"]
             pub const NUM_VARIANTS: usize = Self::ALL_VARIANTS.len();
 
             pub const fn as_str(&self) -> &'static str {
@@ -104,8 +112,10 @@ macro_rules! str_enum_base {
                 }
             }
 
+            #[doc = "All values of `Self`, does not include alternate spellings used for `Self::try_from_str`"]
             pub const ALL_VALUES: &[&str] = &[$(Self::$variant.as_str(),)*];
 
+            #[doc = "Total length of `Self::ALL_VALUES + 1 byte separator. You do not need this."]
             const ALL_VALUES_STR_LEN: usize = {
                 let mut len = 0usize;
                 let mut idx = 0usize;
@@ -117,6 +127,7 @@ macro_rules! str_enum_base {
                 len - 1
             };
 
+            #[doc = "Fixed size byte array of `Self::ALL_VALUES` joined by a comma separator. You do not need this."]
             const ALL_VALUE_BYTES: [u8; Self::ALL_VALUES_STR_LEN] = {
                 let mut buf = [0u8; Self::ALL_VALUES_STR_LEN];
                 let mut idx = 0;
@@ -140,6 +151,7 @@ macro_rules! str_enum_base {
             };
 
             // we assemble this in a funny way due to issues with slicing in const
+            #[doc = "&'static str of `Self::ALL_VALUE_BYTES`"]
             const ALL_VALUE_STR: &str = {
                 match str::from_utf8(&Self::ALL_VALUE_BYTES) {
                     Ok(o) => o,
@@ -149,6 +161,7 @@ macro_rules! str_enum_base {
         }
 
         impl $ty {
+            #[doc = "len() of this variant's str equivalent"]
             pub const fn len(&self) -> usize {
                 self.as_str().len()
             }
@@ -156,6 +169,7 @@ macro_rules! str_enum_base {
 
         $(
             impl $ty {
+                #[doc = "Convert this enum into its repr"]
                 fn into_repr(self) -> $repr {
                     self as $repr
                 }
@@ -402,7 +416,9 @@ macro_rules! str_enum_base {
             $vis struct $error_ty;
 
             impl $error_ty {
+                #[doc = "Length of Self's error string. You do not need this."]
                 const EXPECTED_STR_LEN: usize = "expected one of [".len() + "]".len() + $ty::ALL_VALUES_STR_LEN;
+                #[doc = "Bytes of Self's error string. You do not need this."]
                 const EXPECTED_STR_BYTES: [u8; Self::EXPECTED_STR_LEN] = {
                     let mut buf = [0u8; Self::EXPECTED_STR_LEN];
                     let mut idx = 0;
@@ -422,7 +438,7 @@ macro_rules! str_enum_base {
 
                     buf
                 };
-
+                #[doc = "&'static str of `Self::EXPECTED_STR_BYTES`. You do not need this."]
                 const EXPECTED_STR: &str = {
                     match str::from_utf8(&Self::EXPECTED_STR_BYTES) {
                         Ok(o) => o,
@@ -551,7 +567,9 @@ macro_rules! str_enum_strum {
 macro_rules! str_enum_serde {
     ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
         impl $ty {
+            #[doc = "Length of Self's serde deserialize error. You do not need this."]
             const SERDE_EXPECTED_STR_LEN: usize = "one of [".len() + "]".len() + Self::ALL_VALUES_STR_LEN;
+            #[doc = "Bytes of Self's serde deserialize error. You do not need this."]
             const SERDE_EXPECTED_STR_BYTES: [u8; Self::SERDE_EXPECTED_STR_LEN] = {
                 let mut buf = [0u8; Self::SERDE_EXPECTED_STR_LEN];
                 let mut idx = 0;
@@ -572,6 +590,7 @@ macro_rules! str_enum_serde {
                 buf
             };
 
+            #[doc = "&'static str of `Self::SERDE_EXPECTED_STR_BYTES`. You do not need this."]
             const SERDE_EXPECTED_STR: &str = {
                 match str::from_utf8(&Self::SERDE_EXPECTED_STR_BYTES) {
                     Ok(o) => o,
