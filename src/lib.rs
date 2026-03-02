@@ -25,6 +25,60 @@ pub use serde;
 #[cfg(feature = "strum")]
 pub use strum;
 
+#[cfg(feature = "phf")]
+pub use phf;
+
+#[cfg(feature = "phf")]
+#[macro_export]
+macro_rules! str_enum_try_from_str {
+    (#[phf] $(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
+        impl $ty {
+            const PHF_MAP: $crate::phf::Map<&'static str, $ty> = $crate::phf::phf_map! {
+                $($val $($(| $other_valid )*)? => $ty::$variant,)*
+            };
+
+            pub fn try_from_str(s: &str) -> Option<Self> {
+                Self::PHF_MAP.get(s).copied()
+            }
+        }
+    };
+    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
+        impl $ty {
+            pub fn try_from_str(s: &str) -> Option<Self> {
+                match s {
+                    $($val $($(|$other_valid)*)? => Some(Self::$variant),)*
+                    _ => None,
+                }
+            }
+        }
+    }
+}
+
+#[cfg(not(feature = "phf"))]
+#[macro_export]
+macro_rules! str_enum_try_from_str {
+    (#[phf] $(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
+        impl $ty {
+            pub fn try_from_str(s: &str) -> Option<Self> {
+                match s {
+                    $($val $($(|$other_valid)*)? => Some(Self::$variant),)*
+                    _ => None,
+                }
+            }
+        }
+    };
+    ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
+        impl $ty {
+            pub fn try_from_str(s: &str) -> Option<Self> {
+                match s {
+                    $($val $($(|$other_valid)*)? => Some(Self::$variant),)*
+                    _ => None,
+                }
+            }
+        }
+    }
+}
+
 #[macro_export]
 macro_rules! str_enum_base {
     ($(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
@@ -47,13 +101,6 @@ macro_rules! str_enum_base {
             pub const fn as_str(&self) -> &'static str {
                 match self {
                     $(Self::$variant => $val,)*
-                }
-            }
-
-            pub fn try_from_str(s: &str) -> Option<Self> {
-                match s {
-                    $($val $($(|$other_valid)*)? => Some(Self::$variant),)*
-                    _ => None,
                 }
             }
 
@@ -249,93 +296,6 @@ macro_rules! str_enum_base {
             }
         }
 
-
-
-        $(
-            #[derive(Debug, Clone, Copy, Default)]
-            $vis struct $error_ty;
-
-            impl $error_ty {
-                const EXPECTED_STR_LEN: usize = "expected one of [".len() + "]".len() + $ty::ALL_VALUES_STR_LEN;
-                const EXPECTED_STR_BYTES: [u8; Self::EXPECTED_STR_LEN] = {
-                    let mut buf = [0u8; Self::EXPECTED_STR_LEN];
-                    let mut idx = 0;
-
-                    let first_part = b"expected one of [";
-
-                    while idx < first_part.len() {
-                        buf[idx] = first_part[idx];
-                        idx += 1
-                    }
-
-                    while idx < first_part.len() + $ty::ALL_VALUES_STR_LEN {
-                        buf[idx] = $ty::ALL_VALUE_BYTES[idx - first_part.len()];
-                        idx +=1
-                    }
-                    buf[Self::EXPECTED_STR_LEN - 1] = b']';
-
-                    buf
-                };
-
-                const EXPECTED_STR: &str = {
-                    match str::from_utf8(&Self::EXPECTED_STR_BYTES) {
-                        Ok(o) => o,
-                        Err(_) => panic!(),
-                    }
-                };
-            }
-
-            impl std::fmt::Display for $error_ty {
-                fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    <str as std::fmt::Display>::fmt(Self::EXPECTED_STR, fmt)
-                }
-            }
-
-            impl std::error::Error for $error_ty {}
-
-            impl std::str::FromStr for $ty {
-                type Err = $error_ty;
-
-                fn from_str(s: &str) -> Result<$ty, Self::Err> {
-                    match Self::try_from_str(s) {
-                        Some(variant) => Ok(variant),
-                        None => Err($error_ty)
-                    }
-                }
-            }
-
-            impl TryFrom<&str> for $ty {
-                type Error = $error_ty;
-
-                fn try_from(s: &str) -> Result<$ty, Self::Error> {
-                    match Self::try_from_str(s) {
-                        Some(variant) => Ok(variant),
-                        None => Err($error_ty)
-                    }
-                }
-            }
-
-            impl TryFrom<String> for $ty {
-                type Error = $error_ty;
-
-                fn try_from(s: String) -> Result<$ty, Self::Error> {
-                    match Self::try_from_str(&s) {
-                        Some(variant) => Ok(variant),
-                        None => Err($error_ty)
-                    }
-                }
-            }
-
-            impl<'a> TryFrom<&'a std::ffi::OsStr> for $ty {
-                type Error = $crate::Utf8EnumError<$error_ty>;
-
-                fn try_from(value: &'a std::ffi::OsStr) -> Result<$ty, Self::Error> {
-                    <&'a str as TryFrom<&'a std::ffi::OsStr>>::try_from(value)
-                    .map_err($crate::Utf8EnumError::Utf8)
-                    .and_then(|s| $ty::try_from(s).map_err($crate::Utf8EnumError::InvalidVariant))
-                }
-            }
-        )?
     };
     (AsRef $self:ident, [$($other:ty),*]) => {
         $(
@@ -436,6 +396,93 @@ macro_rules! str_enum_base {
             }
         )*
     };
+    (FromStr $(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
+        $(
+            #[derive(Debug, Clone, Copy, Default)]
+            $vis struct $error_ty;
+
+            impl $error_ty {
+                const EXPECTED_STR_LEN: usize = "expected one of [".len() + "]".len() + $ty::ALL_VALUES_STR_LEN;
+                const EXPECTED_STR_BYTES: [u8; Self::EXPECTED_STR_LEN] = {
+                    let mut buf = [0u8; Self::EXPECTED_STR_LEN];
+                    let mut idx = 0;
+
+                    let first_part = b"expected one of [";
+
+                    while idx < first_part.len() {
+                        buf[idx] = first_part[idx];
+                        idx += 1
+                    }
+
+                    while idx < first_part.len() + $ty::ALL_VALUES_STR_LEN {
+                        buf[idx] = $ty::ALL_VALUE_BYTES[idx - first_part.len()];
+                        idx +=1
+                    }
+                    buf[Self::EXPECTED_STR_LEN - 1] = b']';
+
+                    buf
+                };
+
+                const EXPECTED_STR: &str = {
+                    match str::from_utf8(&Self::EXPECTED_STR_BYTES) {
+                        Ok(o) => o,
+                        Err(_) => panic!(),
+                    }
+                };
+            }
+
+            impl std::fmt::Display for $error_ty {
+                fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    <str as std::fmt::Display>::fmt(Self::EXPECTED_STR, fmt)
+                }
+            }
+
+            impl std::error::Error for $error_ty {}
+
+            impl std::str::FromStr for $ty {
+                type Err = $error_ty;
+
+                fn from_str(s: &str) -> Result<$ty, Self::Err> {
+                    match Self::try_from_str(s) {
+                        Some(variant) => Ok(variant),
+                        None => Err($error_ty)
+                    }
+                }
+            }
+
+            impl TryFrom<&str> for $ty {
+                type Error = $error_ty;
+
+                fn try_from(s: &str) -> Result<$ty, Self::Error> {
+                    match Self::try_from_str(s) {
+                        Some(variant) => Ok(variant),
+                        None => Err($error_ty)
+                    }
+                }
+            }
+
+            impl TryFrom<String> for $ty {
+                type Error = $error_ty;
+
+                fn try_from(s: String) -> Result<$ty, Self::Error> {
+                    match Self::try_from_str(&s) {
+                        Some(variant) => Ok(variant),
+                        None => Err($error_ty)
+                    }
+                }
+            }
+
+            impl<'a> TryFrom<&'a std::ffi::OsStr> for $ty {
+                type Error = $crate::Utf8EnumError<$error_ty>;
+
+                fn try_from(value: &'a std::ffi::OsStr) -> Result<$ty, Self::Error> {
+                    <&'a str as TryFrom<&'a std::ffi::OsStr>>::try_from(value)
+                    .map_err($crate::Utf8EnumError::Utf8)
+                    .and_then(|s| $ty::try_from(s).map_err($crate::Utf8EnumError::InvalidVariant))
+                }
+            }
+        )?
+    }
 }
 
 #[cfg(feature = "strum")]
@@ -599,6 +646,70 @@ macro_rules! str_enum {
             }
         );
 
+        $crate::str_enum_try_from_str!{
+            $(#[error_type($error_ty)])?
+            $(#[derive($($derive_trait,)*)])?
+            $(#[repr($repr)])?
+            $vis enum $ty {
+                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
+            }
+        }
+
+        $crate::str_enum_base!(FromStr
+            $(#[error_type($error_ty)])?
+            $(#[derive($($derive_trait,)*)])?
+            $(#[repr($repr)])?
+            $vis enum $ty {
+                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
+            }
+        );
+    };
+    (#[phf] $(#[error_type($error_ty:ident)])? $(#[derive($($derive_trait:ident),* $(,)?)])? $(#[repr($repr:ty)])? $vis:vis enum $ty:ident { $($variant:ident $(= $variant_repr:literal)? => $val:literal $(($($other_valid:literal),* $(,)?))?),* $(,)? }) => {
+        $crate::str_enum_base!(
+            $(#[error_type($error_ty)])?
+            $(#[derive($($derive_trait,)*)])?
+            $(#[repr($repr)])?
+            $vis enum $ty {
+                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
+            }
+        );
+
+        $crate::str_enum_strum!(
+            $(#[error_type($error_ty)])?
+            $(#[derive($($derive_trait,)*)])?
+            $(#[repr($repr)])?
+            $vis enum $ty {
+                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
+            }
+        );
+
+        $crate::str_enum_serde!(
+            $(#[error_type($error_ty)])?
+            $(#[derive($($derive_trait,)*)])?
+            $(#[repr($repr)])?
+            $vis enum $ty {
+                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
+            }
+        );
+
+        $crate::str_enum_try_from_str!{
+            #[phf]
+            $(#[error_type($error_ty)])?
+            $(#[derive($($derive_trait,)*)])?
+            $(#[repr($repr)])?
+            $vis enum $ty {
+                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
+            }
+        }
+
+        $crate::str_enum_base!(FromStr
+            $(#[error_type($error_ty)])?
+            $(#[derive($($derive_trait,)*)])?
+            $(#[repr($repr)])?
+            $vis enum $ty {
+                $($variant $(= $variant_repr)? => $val $(($($other_valid),*))?,)*
+            }
+        );
     };
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "str_enum"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Adam Stopher <adam.stopher@protonmail.com>"]
 edition = "2024"
 resolver = "3"
@@ -13,6 +13,7 @@ keywords = ["enum", "str_enum", "macro"]
 categories = ["rust-patterns"]
 
 [dependencies]
+phf = { version = "0.13.1", optional = true }
 serde = { version = "1.0.228", default-features = false, optional = true }
 strum = { version = "0.28.0", default-features = false, optional = true }
 
@@ -20,6 +21,7 @@ strum = { version = "0.28.0", default-features = false, optional = true }
 [features]
 serde = ["dep:serde", "serde/alloc"]
 strum = ["dep:strum"]
+phf = ["dep:phf", "phf/macros"]
 
 [dev-dependencies]
 serde_json = "1.0.149"
