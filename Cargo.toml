@@ -1,6 +1,6 @@
 [package]
 name = "str_enum"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Adam Stopher <adam.stopher@protonmail.com>"]
 edition = "2024"
 rust-version = "1.87"

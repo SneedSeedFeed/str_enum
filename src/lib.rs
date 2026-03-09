@@ -165,6 +165,11 @@ macro_rules! str_enum_base {
             pub const fn len(&self) -> usize {
                 self.as_str().len()
             }
+
+            #[doc = "equivalent to str::is_empty"]
+            pub const fn is_empty(&self) -> bool {
+                self.as_str().is_empty()
+            }
         }
 
         $(
